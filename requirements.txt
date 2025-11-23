@@ -1,0 +1,4 @@
+streamlit
+# Use the same package you use in Kaggle for google.adk
+# Example placeholder (CHANGE to the correct one you already use):
+google-adk
