@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from google.adk.runners import InMemoryRunner
-from agents import root_agent  # Import the root coordinator agent
+from agents import root_agent  # Import the coordinator agent
 
 
 # ----------------------------
@@ -26,15 +26,15 @@ st.set_page_config(page_title="Multi-Agent Research Assistant", page_icon="📚"
 
 st.title("📚 Multi-Agent Research Assistant")
 st.write("""
-This app uses a **multi-agent workflow** powered by Google ADK:
+This app uses a **multi-agent workflow powered by Google ADK**:
 
-- 🧠 ResearchAgent → gathers information using Google Search  
-- ✍️ SummarizerAgent → converts findings into short insights  
-- 🧩 Root Agent → coordinates both  
+- 🧠 **ResearchAgent** → performs web research  
+- ✍️ **SummarizerAgent** → summarizes findings  
+- 📎 **RootCoordinatorAgent** → orchestrates everything  
 """)
 
 user_query = st.text_area("🔍 Enter your research question:", height=120)
-show_intermediate = st.checkbox("Show intermediate agent results (for debugging)", value=False)
+show_intermediate = st.checkbox("Show intermediate agent data", value=False)
 
 if st.button("🚀 Run Research"):
     if not user_query.strip():
@@ -42,7 +42,8 @@ if st.button("🚀 Run Research"):
     else:
         with st.spinner("🤖 Agents are working..."):
             try:
-                result = runner.run(user_query)
+                # FIXED CALL — must use keyword input=
+                result = runner.run(input=user_query)
             except Exception as e:
                 st.error(f"❌ Agent execution failed: {str(e)}")
                 st.stop()
@@ -50,11 +51,9 @@ if st.button("🚀 Run Research"):
         # ----------------------------
         # Display Results
         # ----------------------------
-
         st.subheader("📌 Final Summary")
-        
+
         if isinstance(result, dict):
-            # Try best matching key
             final_answer = (
                 result.get("final_summary") or
                 result.get("output") or
@@ -64,18 +63,16 @@ if st.button("🚀 Run Research"):
             st.markdown(final_answer)
 
             if show_intermediate:
-                st.subheader("🧩 Agent Context Data")
-                st.code(result)
-                
-                if "research_findings" in result:
-                    st.subheader("🔎 Raw Research Output")
-                    st.markdown(result["research_findings"])
+                st.subheader("🧩 Agent Debug Output")
+                st.json(result)
 
+                if "research_findings" in result:
+                    st.subheader("🔎 Raw Research Results")
+                    st.markdown(result["research_findings"])
         else:
-            # Root agent returned string instead of dict
             st.markdown(str(result))
 
 
 # Footer
 st.write("---")
-st.caption("Built with ❤️ using Google ADK + Streamlit + Multi-Agent Design")
+st.caption("Built with ❤️ using Google ADK, Gemini 2.5 and Streamlit.")
