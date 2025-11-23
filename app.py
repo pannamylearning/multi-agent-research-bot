@@ -1,40 +1,81 @@
+import os
 import streamlit as st
-from agents import root_agent  # import the coordinator agent
+from google.adk.runners import InMemoryRunner
+from agents import root_agent  # Import the root coordinator agent
 
+
+# ----------------------------
+# 1. Setup API Key
+# ----------------------------
+if "GOOGLE_API_KEY" in st.secrets:
+    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+else:
+    st.warning("⚠ No GOOGLE_API_KEY found. Add it in Streamlit → Settings → Secrets.")
+
+
+# ----------------------------
+# 2. Create runner
+# ----------------------------
+runner = InMemoryRunner(root_agent)
+
+
+# ----------------------------
+# 3. Streamlit UI
+# ----------------------------
 st.set_page_config(page_title="Multi-Agent Research Assistant", page_icon="📚")
 
 st.title("📚 Multi-Agent Research Assistant")
-st.write(
-    "Ask a research question. The root agent will coordinate a research agent "
-    "and a summarizer agent to answer you."
-)
+st.write("""
+This app uses a **multi-agent workflow** powered by Google ADK:
 
-user_query = st.text_area("Enter your research question:", height=120)
-show_intermediate = st.checkbox("Show intermediate research findings", value=False)
+- 🧠 ResearchAgent → gathers information using Google Search  
+- ✍️ SummarizerAgent → converts findings into short insights  
+- 🧩 Root Agent → coordinates both  
+""")
 
-if st.button("Run Research"):
+user_query = st.text_area("🔍 Enter your research question:", height=120)
+show_intermediate = st.checkbox("Show intermediate agent results (for debugging)", value=False)
+
+if st.button("🚀 Run Research"):
     if not user_query.strip():
         st.warning("Please enter a question first.")
     else:
-        with st.spinner("Running multi-agent workflow..."):
-            result = root_agent.run(user_query)
+        with st.spinner("🤖 Agents are working..."):
+            try:
+                result = runner.run(user_query)
+            except Exception as e:
+                st.error(f"❌ Agent execution failed: {str(e)}")
+                st.stop()
 
-        st.subheader("🧾 Final Answer")
+        # ----------------------------
+        # Display Results
+        # ----------------------------
 
+        st.subheader("📌 Final Summary")
+        
         if isinstance(result, dict):
-            # Try to pull out something meaningful
+            # Try best matching key
             final_answer = (
-                result.get("final_summary")
-                or result.get("output")
-                or str(result)
+                result.get("final_summary") or
+                result.get("output") or
+                result.get("response") or
+                str(result)
             )
             st.markdown(final_answer)
 
             if show_intermediate:
-                research_findings = result.get("research_findings")
-                if research_findings:
-                    st.subheader("🔍 Research Findings (from ResearchAgent)")
-                    st.markdown(research_findings)
+                st.subheader("🧩 Agent Context Data")
+                st.code(result)
+                
+                if "research_findings" in result:
+                    st.subheader("🔎 Raw Research Output")
+                    st.markdown(result["research_findings"])
+
         else:
-            # If the agent returns plain text
-            st.markdown(result)
+            # Root agent returned string instead of dict
+            st.markdown(str(result))
+
+
+# Footer
+st.write("---")
+st.caption("Built with ❤️ using Google ADK + Streamlit + Multi-Agent Design")
