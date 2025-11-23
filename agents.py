@@ -3,18 +3,11 @@ from google.adk.models.google_llm import Gemini
 from google.adk.tools import google_search
 from google.adk.tools.agent_tool import AgentTool
 
-# Adjust this to match how you used retry_options before
-retry_config = {
-    "max_retries": 3,
-    "timeout": 60,
-}
-
 # Research agent – uses google_search
 research_agent = Agent(
     name="ResearchAgent",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
-        retry_options=retry_config,
+        model="gemini-2.5-flash-lite"
     ),
     instruction=(
         "You are a specialized research agent. Use the google_search tool "
@@ -29,8 +22,7 @@ research_agent = Agent(
 summarizer_agent = Agent(
     name="SummarizerAgent",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
-        retry_options=retry_config,
+        model="gemini-2.5-flash-lite"
     ),
     instruction=(
         "You are a summarizer. Read the provided research findings and create "
@@ -43,8 +35,7 @@ summarizer_agent = Agent(
 root_agent = Agent(
     name="ResearchCoordinator",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
-        retry_options=retry_config,
+        model="gemini-2.5-flash-lite"
     ),
     instruction=(
         "You are a research coordinator. Your job is to answer the user query by orchestrating a workflow:\n"
