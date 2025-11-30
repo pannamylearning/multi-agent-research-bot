@@ -44,7 +44,7 @@ if st.button("🚀 Run Research"):
         with st.spinner("🤖 Agents are working..."):
             try:
                 # ⬇️ CORRECT INPUT FORMAT FOR google_search
-                result = runner.run(prompt=user_query)
+                result = runner.run(input=user_query)
             except Exception as e:
                 st.error(f"❌ Agent execution failed: {str(e)}")
                 st.stop()
