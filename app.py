@@ -1,7 +1,13 @@
+# app.py
+
 import os
+import asyncio
+
 import streamlit as st
 from google.adk.runners import InMemoryRunner
-from agents import root_agent  # Import the root coordinator agent
+from google.genai import types
+
+from agents import root_agent  # root_agent from agents.py
 
 
 # ----------------------------
@@ -12,11 +18,28 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     st.warning("⚠ No GOOGLE_API_KEY found. Add it in Streamlit → Settings → Secrets.")
 
+APP_NAME = "multi_agent_research_app"
+USER_ID = "streamlit_user"
+
 
 # ----------------------------
-# 2. Create runner
+# 2. Create runner + session
 # ----------------------------
-runner = InMemoryRunner(root_agent)
+# Attach the root agent to an in-memory runner
+runner = InMemoryRunner(agent=root_agent, app_name=APP_NAME)
+
+# Use the runner's session service to create a session
+session_service = runner.session_service
+
+# Create one session (reused for all questions)
+session = asyncio.run(
+    session_service.create_session(
+        app_name=APP_NAME,
+        user_id=USER_ID,
+        # session_id can be omitted to auto-generate
+    )
+)
+SESSION_ID = session.id
 
 
 # ----------------------------
@@ -25,17 +48,17 @@ runner = InMemoryRunner(root_agent)
 st.set_page_config(page_title="Multi-Agent Research Assistant", page_icon="📚")
 
 st.title("📚 Multi-Agent Research Assistant")
-st.write("""
+st.write(
+    """
 This app uses a **multi-agent workflow powered by Google ADK**:
 
-- 🧠 ResearchAgent → performs Google Search  
-- ✍️ SummarizerAgent → summarizes knowledge  
-- 🤖 Root Agent → coordinates everything  
-""")
+- 🧠 **ResearchAgent** → performs Google Search  
+- ✍️ **SummarizerAgent** → summarizes knowledge  
+- 🤖 **RootAgent** → coordinates everything  
+"""
+)
 
 user_query = st.text_area("🔍 Enter your research question:", height=120)
-show_intermediate = st.checkbox("Show research agent output", value=False)
-
 
 if st.button("🚀 Run Research"):
     if not user_query.strip():
@@ -43,8 +66,31 @@ if st.button("🚀 Run Research"):
     else:
         with st.spinner("🤖 Agents are working..."):
             try:
-                # ⬇️ CORRECT INPUT FORMAT FOR google_search
-                result = runner.run(input=user_query)
+                # Build the ADK Content message for the user input
+                content = types.Content(
+                    role="user",
+                    parts=[types.Part(text=user_query)],
+                )
+
+                final_answer = ""
+
+                # runner.run() yields events; grab the final response
+                for event in runner.run(
+                    user_id=USER_ID,
+                    session_id=SESSION_ID,
+                    new_message=content,
+                ):
+                    if (
+                        event.is_final_response()
+                        and event.content
+                        and event.content.parts
+                        and event.content.parts[0].text
+                    ):
+                        final_answer = event.content.parts[0].text
+
+                if not final_answer:
+                    final_answer = "I didn't receive a final response from the agent."
+
             except Exception as e:
                 st.error(f"❌ Agent execution failed: {str(e)}")
                 st.stop()
@@ -53,21 +99,7 @@ if st.button("🚀 Run Research"):
         # Display Results
         # ----------------------------
         st.subheader("📌 Final Summary")
-
-        if isinstance(result, dict):
-            final_answer = (
-                result.get("final_summary") or
-                result.get("output") or
-                str(result)
-            )
-            st.markdown(final_answer)
-
-            if show_intermediate and "research_findings" in result:
-                st.subheader("🧩 ResearchAgent Output")
-                st.markdown(result["research_findings"])
-
-        else:
-            st.markdown(str(result))
+        st.markdown(final_answer)
 
 
 # Footer
